@@ -645,15 +645,30 @@ async function fetchRSS(url) {
   } catch { return []; }
 }
 
-// ─── Mock YouTube / X (CORS restricted, use curated mock data) ───
-function getMockArticles() {
-  return [
-    { id: 'yt-1', title: 'ライブコマース市場が急成長 — 2025年のトレンドまとめ', url: 'https://www.youtube.com/results?search_query=ライブコマース', source: 'youtube', thumb: null, date: new Date().toLocaleDateString('ja-JP'), rawContent: 'ライブコマースは2025年に入り急速に拡大。TikTok ShopやInstagramライブでの購買が増加傾向にある。', summary: '__loading__', tags: ['commerce'] },
-    { id: 'yt-2', title: '人気ライバーのトップ10と収益の仕組みを解説', url: 'https://www.youtube.com/results?search_query=ライバー収益', source: 'youtube', thumb: null, date: new Date().toLocaleDateString('ja-JP'), rawContent: 'NIcoNicoやツイキャス、17LIVEなどのプラットフォームで活躍するライバーの収益構造を解説。投げ銭・サブスクが主な収入源。', summary: '__loading__', tags: ['liver'] },
-    { id: 'yt-3', title: 'ライブ配信プラットフォーム比較 2025 — YouTube vs TikTok vs Twitch', url: 'https://www.youtube.com/results?search_query=ライブ配信プラットフォーム比較', source: 'youtube', thumb: null, date: new Date().toLocaleDateString('ja-JP'), rawContent: '各プラットフォームの機能・収益化・視聴者層を比較。モバイルファーストのTikTokが若年層に強い。', summary: '__loading__', tags: ['live'] },
-    { id: 'tw-1', title: '【速報】ライブコマース新機能がLINEに登場、販売者登録受付開始', url: 'https://x.com/search?q=ライブコマース', source: 'twitter', thumb: null, date: new Date().toLocaleDateString('ja-JP'), rawContent: 'LINEがライブコマース機能を正式リリース。中小企業向けに月額無料プランも用意。', summary: '__loading__', tags: ['commerce', 'news'] },
-    { id: 'tw-2', title: 'VTuber市場規模が1000億円突破 — 業界レポート2025', url: 'https://x.com/search?q=VTuber市場', source: 'twitter', thumb: null, date: new Date().toLocaleDateString('ja-JP'), rawContent: 'VTuber市場が急拡大。にじさんじ・ホロライブを中心にグッズ・ライブイベントでの収益が拡大している。', summary: '__loading__', tags: ['liver', 'news'] },
-  ];
+// ─── YouTube API 経由で実際の動画を取得 ───
+async function fetchYouTubeVideos() {
+  try {
+    const res = await fetch('/api/youtube');
+    if (!res.ok) {
+      console.warn('YouTube API error, falling back to empty');
+      return [];
+    }
+    const data = await res.json();
+    return (data.videos || []).map((v, idx) => ({
+      id: `yt-${v.videoId}`,
+      title: v.title,
+      url: `https://www.youtube.com/watch?v=${v.videoId}`,
+      source: 'youtube',
+      thumb: v.thumbnail || null,
+      date: v.publishedAt ? new Date(v.publishedAt).toLocaleDateString('ja-JP') : new Date().toLocaleDateString('ja-JP'),
+      rawContent: v.description || '',
+      summary: '__loading__',
+      tags: ['live'],
+    }));
+  } catch (e) {
+    console.warn('YouTube fetch failed:', e);
+    return [];
+  }
 }
 
 // ─── Main fetch & curate ───
@@ -706,9 +721,9 @@ async function fetchAndCurate() {
     keywords.some(k => a.title.toLowerCase().includes(k.toLowerCase()) || a.rawContent.toLowerCase().includes(k.toLowerCase()))
   );
 
-  // Add mock YouTube/X data
-  const mocks = getMockArticles();
-  allArticles = [...mocks, ...relevant].slice(0, 40);
+  // YouTube API から実際の動画を取得
+  const ytVideos = await fetchYouTubeVideos();
+  allArticles = [...ytVideos, ...relevant].slice(0, 40);
 
   // Remove duplicates
   const seen = new Set();
