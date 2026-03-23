@@ -1,0 +1,9 @@
+{
+  "name": "livepulse",
+  "version": "1.0.0",
+  "private": true,
+  "description": "LivePulse — ライブ配信キュレーション Web アプリ",
+  "scripts": {
+    "dev": "vercel dev"
+  }
+}
